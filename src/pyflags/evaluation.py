@@ -16,10 +16,6 @@ class FlagNotFoundError(Exception):
 
 
 class FlagEvaluator:
-    """Public evaluation API. Works against any FlagSource - a raw
-    ConfigStore, or a LiveFlagCache wrapping one - the evaluator doesn't
-    know or care which."""
-
     def __init__(self, source: FlagSource) -> None:
         self._source = source
 
@@ -44,6 +40,12 @@ class FlagEvaluator:
             return flag.default
 
     def _evaluate_flag(self, flag: Flag, context: EvaluationContext) -> Any:
+        # Kill switch sits above the entire precedence chain - an emergency
+        # override should bypass targeting rules and rollout both, not be
+        # itself outranked by a targeting rule that happens to match.
+        if flag.killed:
+            return flag.default
+
         matched = evaluate_targeting_rules(flag.targeting_rules, context)
         if matched is not NO_MATCH:
             return matched

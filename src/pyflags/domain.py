@@ -50,15 +50,6 @@ class TargetingRule(BaseModel):
 
 
 class RolloutConfig(BaseModel):
-    """Percentage rollout for the population that matched no targeting rule.
-
-    `rollout_value` is what's served to users who land inside the
-    percentage bucket. Required (not defaulted to True) because assuming a
-    boolean "on" value would be silently wrong for STRING/INTEGER flags -
-    every flag type needs an explicit answer to "what does the rollout
-    actually serve".
-    """
-
     model_config = ConfigDict(frozen=True)
 
     percentage: float = Field(ge=0, le=100)
@@ -81,6 +72,12 @@ class Flag(BaseModel):
     default: Any
     targeting_rules: tuple[TargetingRule, ...] = Field(default_factory=tuple)
     rollout: Optional[RolloutConfig] = None
+    killed: bool = False
+    """Kill switch. When True, evaluation returns `default` unconditionally -
+    checked before targeting rules and rollout, not woven into that
+    precedence chain. A kill switch is meant to be an emergency override
+    that bypasses everything else, not another rule that could itself be
+    bypassed by a higher-precedence targeting rule."""
 
     @model_validator(mode="after")
     def _check_default_matches_type(self) -> "Flag":

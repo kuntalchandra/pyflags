@@ -207,3 +207,46 @@ class TestAllFlagTypesEndToEnd:
         evaluator = FlagEvaluator(store)
 
         assert evaluator.evaluate("retry-delay", "dev", ctx("u1", fast_path=True)) == 0
+
+
+class TestKillSwitch:
+    def test_killed_flag_returns_default_ignoring_matching_targeting_rule(self):
+        store = ConfigStore()
+        flag = Flag(
+            name="checkout-v2",
+            flag_type=FlagType.BOOLEAN,
+            default=False,
+            killed=True,
+            targeting_rules=(
+                TargetingRule(attribute="country", operator=Operator.EQUALS, value="IN", return_value=True),
+            ),
+        )
+        store.set(flag, env="dev")
+        evaluator = FlagEvaluator(store)
+
+        # Targeting rule WOULD match (country=IN) but killed=True overrides it entirely
+        result = evaluator.evaluate("checkout-v2", "dev", ctx("u1", country="IN"))
+        assert result is False
+
+    def test_killed_flag_returns_default_ignoring_hundred_percent_rollout(self):
+        store = ConfigStore()
+        flag = Flag(
+            name="checkout-v2",
+            flag_type=FlagType.BOOLEAN,
+            default=False,
+            killed=True,
+            rollout=RolloutConfig(percentage=100, rollout_value=True),
+        )
+        store.set(flag, env="dev")
+        evaluator = FlagEvaluator(store)
+
+        result = evaluator.evaluate("checkout-v2", "dev", ctx("u1"))
+        assert result is False
+
+    def test_non_killed_flag_unaffected(self):
+        store = ConfigStore()
+        flag = Flag(name="checkout-v2", flag_type=FlagType.BOOLEAN, default=False, killed=False)
+        store.set(flag, env="dev")
+        evaluator = FlagEvaluator(store)
+
+        assert evaluator.evaluate("checkout-v2", "dev", ctx("u1")) is False

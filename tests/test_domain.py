@@ -117,3 +117,13 @@ class TestEvaluationContext:
     def test_empty_user_id_rejected(self):
         with pytest.raises(ValidationError):
             EvaluationContext(user_id="")
+
+
+class TestKillSwitch:
+    def test_killed_defaults_to_false(self):
+        flag = Flag(name="x", flag_type=FlagType.BOOLEAN, default=False)
+        assert flag.killed is False
+
+    def test_killed_can_be_set_true(self):
+        flag = Flag(name="x", flag_type=FlagType.BOOLEAN, default=False, killed=True)
+        assert flag.killed is True
