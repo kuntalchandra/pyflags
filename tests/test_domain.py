@@ -31,23 +31,27 @@ class TestTargetingRule:
 
 class TestRolloutConfig:
     def test_valid_percentage(self):
-        assert RolloutConfig(percentage=50).percentage == 50
+        assert RolloutConfig(percentage=50, rollout_value=True).percentage == 50
 
     def test_out_of_range_percentage_rejected(self):
         with pytest.raises(ValidationError):
-            RolloutConfig(percentage=150)
+            RolloutConfig(percentage=150, rollout_value=True)
 
     def test_negative_percentage_rejected(self):
         with pytest.raises(ValidationError):
-            RolloutConfig(percentage=-1)
+            RolloutConfig(percentage=-1, rollout_value=True)
 
     def test_non_numeric_percentage_rejected(self):
         with pytest.raises(ValidationError):
-            RolloutConfig(percentage="fifty")
+            RolloutConfig(percentage="fifty", rollout_value=True)
 
     def test_bool_percentage_rejected(self):
         with pytest.raises(ValidationError):
-            RolloutConfig(percentage=True)
+            RolloutConfig(percentage=True, rollout_value=True)
+
+    def test_missing_rollout_value_rejected(self):
+        with pytest.raises(ValidationError):
+            RolloutConfig(percentage=50)
 
 
 class TestFlag:
@@ -64,7 +68,6 @@ class TestFlag:
             Flag(name="x", flag_type=FlagType.BOOLEAN, default="not-a-bool")
 
     def test_integer_flag_rejects_bool_default(self):
-        # bool default on an INTEGER flag is a classic type-correct-but-wrong bug
         with pytest.raises(ValidationError):
             Flag(name="x", flag_type=FlagType.INTEGER, default=True)
 
@@ -77,16 +80,6 @@ class TestFlag:
         rule = TargetingRule(attribute="country", operator=Operator.EQUALS, value="IN", return_value=True)
         with pytest.raises(ValidationError):
             Flag(name="x", flag_type=FlagType.BOOLEAN, default=False, targeting_rules=(rule, rule))
-
-
-class TestEvaluationContext:
-    def test_valid_context(self):
-        ctx = EvaluationContext(user_id="u123", tenant="acme", attributes={"country": "IN"})
-        assert ctx.user_id == "u123"
-
-    def test_empty_user_id_rejected(self):
-        with pytest.raises(ValidationError):
-            EvaluationContext(user_id="")
 
 
 class TestRolloutValueTypeMatching:
@@ -114,3 +107,13 @@ class TestRolloutValueTypeMatching:
             rollout=rollout,
         )
         assert flag.rollout.rollout_value == "variant-b"
+
+
+class TestEvaluationContext:
+    def test_valid_context(self):
+        ctx = EvaluationContext(user_id="u123", tenant="acme", attributes={"country": "IN"})
+        assert ctx.user_id == "u123"
+
+    def test_empty_user_id_rejected(self):
+        with pytest.raises(ValidationError):
+            EvaluationContext(user_id="")
