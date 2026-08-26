@@ -185,3 +185,35 @@ to be genuine):
 ## Out of Scope (unchanged from spec)
 Persistent store, UI/admin panel, network/transport layer, multi-region
 replication.
+
+
+## Deviation Log (post-first-commit changes go here, PLAN.md body above stays as originally committed)
+
+### Deviation 1 — Typing & Validation approach revised to include Pydantic
+Original plan was stdlib-only (type hints + hand-written `__post_init__`
+validation). Revised after reviewing readability trade-offs: hand-rolled
+`isinstance` checks in `__post_init__` buried validation logic away from the
+field declarations, hurting reviewability.
+
+**New approach:**
+1. Type hints — dev-time signal only, as before.
+2. **Pydantic `BaseModel`** — runtime boundary validation, colocated with
+   each field via `Field(...)` constraints (e.g. `percentage: float =
+   Field(ge=0, le=100)`). This also absorbs what was previously a deferred
+   "domain rule" (percentage range) directly into the model, since Pydantic
+   makes it a one-line, colocated constraint rather than separate imperative
+   code.
+3. **Explicit domain validation** for rules Pydantic can't express on a
+   single field - specifically cross-field/cross-object business rules like
+   "a targeting rule's return_value must match the owning Flag's
+   flag_type" - implemented via Pydantic `@model_validator(mode="after")`
+   on `Flag`, still clearly separated from field-level shape validation.
+
+Net effect: fail-fast now happens as early as object construction (a bad
+`Flag` can't even be built), not only at `ConfigStore.set()`. `ConfigStore`
+remains a second validation gate for anything constructed another way.
+
+This does step outside the original "stdlib-only" framing - `pydantic` is
+now a real dependency. Judged worth it given validation is a stated
+non-negotiable for this exercise and the readability cost of hand-rolled
+checks was real.
