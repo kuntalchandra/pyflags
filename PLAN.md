@@ -217,3 +217,36 @@ This does step outside the original "stdlib-only" framing - `pydantic` is
 now a real dependency. Judged worth it given validation is a stated
 non-negotiable for this exercise and the readability cost of hand-rolled
 checks was real.
+
+
+### Plan Change 2 — Step 10 replaced: solo timed drill → planted-defects review drill
+Original step 10 was a solo, timed (45 min), from-scratch rebuild of steps
+3-7 against a fresh clone, using only PLAN.md as reference - intended to
+build raw implementation speed/muscle memory.
+
+**Replaced with:** a recurring, separate "code review reasoning drill" -
+Claude plants deliberate defects into a copy of real project code, reviewer
+(the author of this repo) critiques cold and writes up findings before any
+fix is attempted. Full format and session history tracked in a separate
+`Review_Drill_Tracker.md`-style artifact (not committed to this repo, since
+it's a project-agnostic recurring exercise, not pyflags-specific).
+
+**Why this counts as a plan change, not a scope change:** the destination -
+being ready for a real, high-stakes code review (step 13) - is unchanged.
+Only the method changed, because the original method (speed of solo
+writing) doesn't train the actual skill step 13 requires (reasoning about
+someone else's code under review pressure, not writing your own from
+memory). A genuine scope change would look different: e.g. "skip step 8's
+push+poll entirely" would shrink the deliverable itself. This didn't -
+step 10's goal (be ready for step 13) survived unchanged; only how we get
+there did.
+
+Scratch-clone / `pre-drill-baseline` git tag from the abandoned approach
+left in place, unused - harmless, not worth cleaning up.
+
+---
+
+## Scope Changes (the destination itself changed)
+
+(none yet - this section exists so a genuine scope change, if one occurs,
+is visibly distinguished from a plan change like the one above)
