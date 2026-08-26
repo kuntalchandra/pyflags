@@ -87,3 +87,30 @@ class TestEvaluationContext:
     def test_empty_user_id_rejected(self):
         with pytest.raises(ValidationError):
             EvaluationContext(user_id="")
+
+
+class TestRolloutValueTypeMatching:
+    def test_rollout_value_matching_flag_type_accepted(self):
+        rollout = RolloutConfig(percentage=50, rollout_value=True)
+        flag = Flag(
+            name="checkout-v2",
+            flag_type=FlagType.BOOLEAN,
+            default=False,
+            rollout=rollout,
+        )
+        assert flag.rollout.rollout_value is True
+
+    def test_rollout_value_type_mismatch_rejected(self):
+        rollout = RolloutConfig(percentage=50, rollout_value="on")  # str on a BOOLEAN flag
+        with pytest.raises(ValidationError):
+            Flag(name="x", flag_type=FlagType.BOOLEAN, default=False, rollout=rollout)
+
+    def test_string_flag_rollout_value(self):
+        rollout = RolloutConfig(percentage=25, rollout_value="variant-b")
+        flag = Flag(
+            name="button-color",
+            flag_type=FlagType.STRING,
+            default="variant-a",
+            rollout=rollout,
+        )
+        assert flag.rollout.rollout_value == "variant-b"

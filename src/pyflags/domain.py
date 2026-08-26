@@ -20,26 +20,16 @@ class Operator(str, Enum):
 
 
 def _matches_flag_type(value: Any, flag_type: FlagType) -> bool:
-    """Domain rule: is `value` a legal value for a flag of this FlagType?
-
-    Deliberately explicit rather than delegated to Pydantic - "is this the
-    right Python type for this flag's declared semantic type" is a business
-    rule about the flag system, not a generic type constraint Pydantic
-    could express on a single field in isolation.
-    """
     if flag_type is FlagType.BOOLEAN:
         return isinstance(value, bool)
     if flag_type is FlagType.STRING:
         return isinstance(value, str)
     if flag_type is FlagType.INTEGER:
-        # bool is a subclass of int in Python - explicitly excluded
         return isinstance(value, int) and not isinstance(value, bool)
     return False
 
 
 class TargetingRule(BaseModel):
-    """If `attribute` OP `value` on the evaluation context, return `return_value`."""
-
     model_config = ConfigDict(frozen=True)
 
     attribute: str = Field(min_length=1)
@@ -60,19 +50,24 @@ class TargetingRule(BaseModel):
 
 
 class RolloutConfig(BaseModel):
-    """Percentage rollout for the population that matched no targeting rule."""
+    """Percentage rollout for the population that matched no targeting rule.
+
+    `rollout_value` is what's served to users who land inside the
+    percentage bucket. Required (not defaulted to True) because assuming a
+    boolean "on" value would be silently wrong for STRING/INTEGER flags -
+    every flag type needs an explicit answer to "what does the rollout
+    actually serve".
+    """
 
     model_config = ConfigDict(frozen=True)
 
-    # ge/le are the domain rule (valid rollout range), colocated with the
-    # field instead of deferred to a separate validation step.
     percentage: float = Field(ge=0, le=100)
+    rollout_value: Any
     shared_bucketing_key: Optional[str] = None
 
     @field_validator("percentage", mode="before")
     @classmethod
     def _reject_bool(cls, v: Any) -> Any:
-        # Pydantic would otherwise happily coerce True/False to 1.0/0.0
         if isinstance(v, bool):
             raise ValueError("percentage must be a number, not a bool")
         return v
@@ -105,6 +100,18 @@ class Flag(BaseModel):
                     f"has return_value={rule.return_value!r} which does not "
                     f"match declared flag_type={self.flag_type}"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _check_rollout_value_matches_type(self) -> "Flag":
+        if self.rollout is not None and not _matches_flag_type(
+            self.rollout.rollout_value, self.flag_type
+        ):
+            raise ValueError(
+                f"Flag '{self.name}': rollout.rollout_value="
+                f"{self.rollout.rollout_value!r} does not match declared "
+                f"flag_type={self.flag_type}"
+            )
         return self
 
     @model_validator(mode="after")
