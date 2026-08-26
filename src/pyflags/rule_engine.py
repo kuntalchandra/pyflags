@@ -8,7 +8,6 @@ from pyflags.domain import EvaluationContext, Operator, TargetingRule
 # a BOOLEAN flag, so neither can double as "no rule matched."
 NO_MATCH = object()
 
-_RESERVED_ATTRIBUTES = {"user_id", "tenant"}
 
 
 def _resolve_attribute(attribute: str, context: EvaluationContext) -> Any:

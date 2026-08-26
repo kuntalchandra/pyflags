@@ -99,3 +99,26 @@ class TestFailSafeOnMissingOrIncompatibleData:
             rule("country", Operator.EQUALS, "IN", "good-match"),
         )
         assert evaluate_targeting_rules(rules, ctx) == "good-match"
+
+
+class TestGenuineTypeErrorFailSafe:
+    """The earlier 'incompatible IN comparison' test didn't actually trigger
+    a TypeError - `30 in ["young", "old"]` just evaluates False normally.
+    This targets the real TypeError path: `in` on a set requires the left
+    operand to be hashable, so an unhashable attribute value (a list) against
+    a set-valued rule genuinely raises."""
+
+    def test_unhashable_attribute_against_set_value_does_not_raise(self):
+        ctx = EvaluationContext(user_id="u1", attributes={"tags": ["a", "b"]})
+        rules = (rule("tags", Operator.IN, {"x", "y"}, True),)
+        # Without the except TypeError guard, this would propagate a raw
+        # TypeError to the caller - violating "never throw a blind error".
+        assert evaluate_targeting_rules(rules, ctx) is NO_MATCH
+
+    def test_bad_rule_via_typeerror_does_not_block_later_good_rule(self):
+        ctx = EvaluationContext(user_id="u1", attributes={"tags": ["a", "b"], "country": "IN"})
+        rules = (
+            rule("tags", Operator.IN, {"x", "y"}, "bad-match"),  # raises internally, caught
+            rule("country", Operator.EQUALS, "IN", "good-match"),
+        )
+        assert evaluate_targeting_rules(rules, ctx) == "good-match"
