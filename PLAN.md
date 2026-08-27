@@ -185,3 +185,68 @@ to be genuine):
 ## Out of Scope (unchanged from spec)
 Persistent store, UI/admin panel, network/transport layer, multi-region
 replication.
+
+
+## Deviation Log (post-first-commit changes go here, PLAN.md body above stays as originally committed)
+
+### Deviation 1 — Typing & Validation approach revised to include Pydantic
+Original plan was stdlib-only (type hints + hand-written `__post_init__`
+validation). Revised after reviewing readability trade-offs: hand-rolled
+`isinstance` checks in `__post_init__` buried validation logic away from the
+field declarations, hurting reviewability.
+
+**New approach:**
+1. Type hints — dev-time signal only, as before.
+2. **Pydantic `BaseModel`** — runtime boundary validation, colocated with
+   each field via `Field(...)` constraints (e.g. `percentage: float =
+   Field(ge=0, le=100)`). This also absorbs what was previously a deferred
+   "domain rule" (percentage range) directly into the model, since Pydantic
+   makes it a one-line, colocated constraint rather than separate imperative
+   code.
+3. **Explicit domain validation** for rules Pydantic can't express on a
+   single field - specifically cross-field/cross-object business rules like
+   "a targeting rule's return_value must match the owning Flag's
+   flag_type" - implemented via Pydantic `@model_validator(mode="after")`
+   on `Flag`, still clearly separated from field-level shape validation.
+
+Net effect: fail-fast now happens as early as object construction (a bad
+`Flag` can't even be built), not only at `ConfigStore.set()`. `ConfigStore`
+remains a second validation gate for anything constructed another way.
+
+This does step outside the original "stdlib-only" framing - `pydantic` is
+now a real dependency. Judged worth it given validation is a stated
+non-negotiable for this exercise and the readability cost of hand-rolled
+checks was real.
+
+
+### Plan Change 2 — Step 10 replaced: solo timed drill → planted-defects review drill
+Original step 10 was a solo, timed (45 min), from-scratch rebuild of steps
+3-7 against a fresh clone, using only PLAN.md as reference - intended to
+build raw implementation speed/muscle memory.
+
+**Replaced with:** a recurring, separate "code review reasoning drill" -
+Claude plants deliberate defects into a copy of real project code, reviewer
+(the author of this repo) critiques cold and writes up findings before any
+fix is attempted. Full format and session history tracked in a separate
+`Review_Drill_Tracker.md`-style artifact (not committed to this repo, since
+it's a project-agnostic recurring exercise, not pyflags-specific).
+
+**Why this counts as a plan change, not a scope change:** the destination -
+being ready for a real, high-stakes code review (step 13) - is unchanged.
+Only the method changed, because the original method (speed of solo
+writing) doesn't train the actual skill step 13 requires (reasoning about
+someone else's code under review pressure, not writing your own from
+memory). A genuine scope change would look different: e.g. "skip step 8's
+push+poll entirely" would shrink the deliverable itself. This didn't -
+step 10's goal (be ready for step 13) survived unchanged; only how we get
+there did.
+
+Scratch-clone / `pre-drill-baseline` git tag from the abandoned approach
+left in place, unused - harmless, not worth cleaning up.
+
+---
+
+## Scope Changes (the destination itself changed)
+
+(none yet - this section exists so a genuine scope change, if one occurs,
+is visibly distinguished from a plan change like the one above)
